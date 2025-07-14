@@ -63,10 +63,26 @@ function acceptTask(id) {
   const all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
   const task = all.find(r => r.id === id);
   if (task) {
-    task.alerted = false; // Flag to control single alert
     accepted.push(task);
     localStorage.setItem("myTasks", JSON.stringify(accepted));
     loadMyTasks();
+    scheduleReminder(task);
+  }
+}
+
+// ⏰ Simulate Background Task Reminder
+function scheduleReminder(task) {
+  const now = new Date();
+  const [hh, mm] = task.time.split(":");
+  const taskTime = new Date();
+  taskTime.setHours(+hh, +mm, 0);
+
+  const delay = taskTime.getTime() - now.getTime();
+
+  if (delay > 0) {
+    setTimeout(() => {
+      alert(`🔔 Reminder: Your task "${task.task}" is scheduled for now.`);
+    }, delay);
   }
 }
 
@@ -99,29 +115,6 @@ function loadMyTasks() {
   });
 }
 
-// ⏰ Monitor Tasks Every Minute
-function monitorTasks() {
-  setInterval(() => {
-    const accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    let changed = false;
-
-    accepted.forEach(task => {
-      if (!task.alerted && task.time === now) {
-        alert(`🔔 Reminder: Your task "${task.task}" is scheduled for now.`);
-        task.alerted = true;
-        changed = true;
-      }
-    });
-
-    if (changed) {
-      localStorage.setItem("myTasks", JSON.stringify(accepted));
-    }
-  }, 60000); // Every minute
-}
-
 // 🚀 Initialize
 loadRequests();
 loadMyTasks();
-monitorTasks();
