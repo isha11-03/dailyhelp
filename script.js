@@ -9,7 +9,7 @@ function getLocation() {
     pos => {
       lat = pos.coords.latitude;
       lon = pos.coords.longitude;
-      document.getElementById("locationStatus").innerText = `Your location: ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      document.getElementById("locationStatus").innerText = `📍 ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
     },
     err => {
       alert("Location access denied.");
@@ -26,7 +26,9 @@ form.addEventListener("submit", e => {
 
   const request = {
     id: Date.now(),
-    task, time, reward,
+    task,
+    time,
+    reward: reward || "No Reward",
     lat: lat ?? "Not shared",
     lon: lon ?? "Not shared"
   };
@@ -36,41 +38,55 @@ form.addEventListener("submit", e => {
   localStorage.setItem("helpRequests", JSON.stringify(all));
   form.reset();
   loadRequests();
+  playConfetti();
+  playDing();
 });
 
 // 📚 Load Help Requests
 function loadRequests() {
   requestsDiv.innerHTML = "";
   const all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
+  const accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
+  const acceptedIds = accepted.map(t => t.id);
 
   all.forEach(req => {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-      <strong>${req.task}</strong><br>
-      Time: ${req.time}<br>
-      ${req.reward ? `<span class="reward-badge">Reward: ₹${req.reward}</span>` : `<span class="reward-badge">No Reward</span>`}
-      <button onclick="acceptTask(${req.id})">Accept</button>
-    `;
-    requestsDiv.appendChild(div);
-    observer.observe(div);
+    if (!acceptedIds.includes(req.id)) {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <strong>${req.task}</strong><br>
+        Time: ${req.time}<br>
+        <span class="reward-badge">${req.reward}</span><br>
+        <button class="btn gradient" onclick="acceptTask(${req.id})">Accept</button>
+      `;
+      requestsDiv.appendChild(div);
+      observer.observe(div);
+    }
   });
 }
 
 // ✅ Accept Task
 function acceptTask(id) {
   let accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
-  const all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
+  let all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
   const task = all.find(r => r.id === id);
   if (task) {
     accepted.push(task);
     localStorage.setItem("myTasks", JSON.stringify(accepted));
+
+    // Remove task from helpRequests
+    const updatedAll = all.filter(r => r.id !== id);
+    localStorage.setItem("helpRequests", JSON.stringify(updatedAll));
+
+    loadRequests();
     loadMyTasks();
     scheduleReminder(task);
+    playConfetti();
+    playDing();
   }
 }
 
-// ⏰ Simulate Background Task Reminder
+// 🔔 Reminder before scheduled task time
 function scheduleReminder(task) {
   const now = new Date();
   const [hh, mm] = task.time.split(":");
@@ -78,26 +94,41 @@ function scheduleReminder(task) {
   taskTime.setHours(+hh, +mm, 0);
 
   const delay = taskTime.getTime() - now.getTime();
-
-  if (delay > 0) {
+  if (delay > 0 && delay < 4 * 60 * 60 * 1000) {
     setTimeout(() => {
-      alert(`🔔 Reminder: Your task "${task.task}" is scheduled for now.`);
+      alert(`⏰ Reminder: Your task "${task.task}" is scheduled now.`);
+      playDing();
+      playConfetti();
     }, delay);
   }
 }
 
-// 👁️ Intersection Observer for card animations
+// 👁️ Animate cards
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
       entry.target.classList.add("visible");
     }
   });
-}, {
-  threshold: 0.1
-});
+}, { threshold: 0.1 });
 
-// 📦 Load accepted tasks
+// 🎉 Confetti & Sound
+function playConfetti() {
+  if (window.confetti) {
+    window.confetti({
+      particleCount: 150,
+      spread: 60,
+      origin: { y: 0.6 }
+    });
+  }
+}
+
+function playDing() {
+  const audio = document.getElementById("ding");
+  if (audio) audio.play();
+}
+
+// ✅ Load accepted tasks
 function loadMyTasks() {
   myTasksDiv.innerHTML = "";
   const accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
@@ -115,6 +146,6 @@ function loadMyTasks() {
   });
 }
 
-// 🚀 Initialize
+// 🔁 Initialize
 loadRequests();
 loadMyTasks();
