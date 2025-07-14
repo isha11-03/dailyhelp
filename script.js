@@ -9,7 +9,8 @@ function getLocation() {
     pos => {
       lat = pos.coords.latitude;
       lon = pos.coords.longitude;
-      document.getElementById("locationStatus").innerText = `Your location: ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      document.getElementById("locationStatus").innerText =
+        `📍 Location saved: ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
     },
     err => {
       alert("Location access denied.");
@@ -17,7 +18,23 @@ function getLocation() {
   );
 }
 
-// 📤 Post help request
+// 🎉 Effects
+function playConfetti() {
+  if (typeof confetti === "function") {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+    });
+  }
+}
+
+function playDing() {
+  const audio = document.getElementById("ding");
+  if (audio) audio.play();
+}
+
+// 📤 Post Help Request
 form.addEventListener("submit", e => {
   e.preventDefault();
   const task = document.getElementById("task").value;
@@ -26,7 +43,9 @@ form.addEventListener("submit", e => {
 
   const request = {
     id: Date.now(),
-    task, time, reward,
+    task,
+    time,
+    reward,
     lat: lat ?? "Not shared",
     lon: lon ?? "Not shared"
   };
@@ -38,19 +57,23 @@ form.addEventListener("submit", e => {
   loadRequests();
 });
 
-// 📚 Load Help Requests
+// 📚 Load Requests (excluding accepted)
 function loadRequests() {
   requestsDiv.innerHTML = "";
   const all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
+  const accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
+  const acceptedIds = accepted.map(t => t.id);
 
-  all.forEach(req => {
+  const visibleRequests = all.filter(t => !acceptedIds.includes(t.id));
+
+  visibleRequests.forEach(req => {
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = `
       <strong>${req.task}</strong><br>
       Time: ${req.time}<br>
       ${req.reward ? `<span class="reward-badge">Reward: ₹${req.reward}</span>` : `<span class="reward-badge">No Reward</span>`}
-      <button onclick="acceptTask(${req.id})">Accept</button>
+      <button class="accept-btn" onclick="acceptTask(${req.id})">Accept</button>
     `;
     requestsDiv.appendChild(div);
     observer.observe(div);
@@ -60,68 +83,80 @@ function loadRequests() {
 // ✅ Accept Task
 function acceptTask(id) {
   let accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
-  const all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
-  const task = all.find(r => r.id === id);
-  if (task) {
-    task.alerted = false; // Flag to control single alert
-    accepted.push(task);
-    localStorage.setItem("myTasks", JSON.stringify(accepted));
-    loadMyTasks();
+  let all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
+
+  const task = all.find(t => t.id === id);
+  if (!task) return;
+
+  accepted.push(task);
+  localStorage.setItem("myTasks", JSON.stringify(accepted));
+
+  // Remove from helpRequests
+  const remaining = all.filter(t => t.id !== id);
+  localStorage.setItem("helpRequests", JSON.stringify(remaining));
+
+  playConfetti();
+  playDing();
+  loadRequests();
+  loadMyTasks();
+  scheduleReminder(task);
+}
+
+// 🧹 Remove Accepted Task
+function removeTask(index) {
+  let tasks = JSON.parse(localStorage.getItem("myTasks") || "[]");
+  tasks.splice(index, 1);
+  localStorage.setItem("myTasks", JSON.stringify(tasks));
+  loadMyTasks();
+  loadRequests(); // refresh nearby requests too
+}
+
+// ⏰ Reminder
+function scheduleReminder(task) {
+  const now = new Date();
+  const [hh, mm] = task.time.split(":");
+  const taskTime = new Date();
+  taskTime.setHours(+hh, +mm, 0, 0);
+
+  const delay = taskTime.getTime() - now.getTime();
+
+  if (delay > 0 && delay < 6 * 60 * 60 * 1000) {
+    setTimeout(() => {
+      alert(`🔔 Reminder: Your task "${task.task}" is scheduled now.`);
+      playConfetti();
+      playDing();
+    }, delay);
   }
 }
 
-// 👁️ Intersection Observer for card animations
+// 👁️ Animate on Scroll
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
       entry.target.classList.add("visible");
     }
   });
-}, {
-  threshold: 0.1
-});
+}, { threshold: 0.1 });
 
-// 📦 Load accepted tasks
+// 📦 Load Accepted Tasks
 function loadMyTasks() {
   myTasksDiv.innerHTML = "";
   const accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
 
-  accepted.forEach(t => {
+  accepted.forEach((t, i) => {
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = `
       <strong>${t.task}</strong><br>
       Scheduled at: ${t.time}<br>
-      <small>📍 ${t.lat}, ${t.lon}</small>
+      <small>📍 ${t.lat}, ${t.lon}</small><br>
+      <button class="accept-btn" onclick="removeTask(${i})">❌ Remove</button>
     `;
     myTasksDiv.appendChild(div);
     observer.observe(div);
   });
 }
 
-// ⏰ Monitor Tasks Every Minute
-function monitorTasks() {
-  setInterval(() => {
-    const accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    let changed = false;
-
-    accepted.forEach(task => {
-      if (!task.alerted && task.time === now) {
-        alert(`🔔 Reminder: Your task "${task.task}" is scheduled for now.`);
-        task.alerted = true;
-        changed = true;
-      }
-    });
-
-    if (changed) {
-      localStorage.setItem("myTasks", JSON.stringify(accepted));
-    }
-  }, 60000); // Every minute
-}
-
 // 🚀 Initialize
 loadRequests();
 loadMyTasks();
-monitorTasks();
