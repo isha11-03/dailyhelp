@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🧺 DailyHelp</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <h1>🧺 DailyHelp</h1>
+    <button onclick="getLocation()">📍 Get My Location</button>
+    <p id="locationStatus"></p>
+
+    <section>
+      <h2>🆘 Post Help Request</h2>
+      <form id="helpForm">
+        <input type="text" placeholder="Task (e.g., Buy milk)" required id="task" />
+        <input type="time" required id="time" />
+        <input type="text" placeholder="Reward (optional)" id="reward" />
+        <button type="submit">Post</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>📋 Nearby Requests</h2>
+      <div id="requests"></div>
+    </section>
+
+    <section>
+      <h2>✅ My Accepted Tasks</h2>
+      <div id="myTasks"></div>
+    </section>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
