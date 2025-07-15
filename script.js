@@ -3,7 +3,6 @@ const form = document.getElementById("helpForm");
 const requestsDiv = document.getElementById("requests");
 const myTasksDiv = document.getElementById("myTasks");
 
-// 📍 Get user location
 function getLocation() {
   navigator.geolocation.getCurrentPosition(
     pos => {
@@ -17,7 +16,6 @@ function getLocation() {
   );
 }
 
-// 📤 Post help request
 form.addEventListener("submit", e => {
   e.preventDefault();
   const task = document.getElementById("task").value;
@@ -42,7 +40,6 @@ form.addEventListener("submit", e => {
   playDing();
 });
 
-// 📚 Load Help Requests
 function loadRequests() {
   requestsDiv.innerHTML = "";
   const all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
@@ -57,7 +54,7 @@ function loadRequests() {
         <strong>${req.task}</strong><br>
         Time: ${req.time}<br>
         <span class="reward-badge">${req.reward}</span><br>
-        <button class="btn gradient" onclick="acceptTask(${req.id})">Accept</button>
+        <button onclick="acceptTask(${req.id})">Accept</button>
       `;
       requestsDiv.appendChild(div);
       observer.observe(div);
@@ -65,7 +62,6 @@ function loadRequests() {
   });
 }
 
-// ✅ Accept Task
 function acceptTask(id) {
   let accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
   let all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
@@ -73,11 +69,8 @@ function acceptTask(id) {
   if (task) {
     accepted.push(task);
     localStorage.setItem("myTasks", JSON.stringify(accepted));
-
-    // Remove task from helpRequests
     const updatedAll = all.filter(r => r.id !== id);
     localStorage.setItem("helpRequests", JSON.stringify(updatedAll));
-
     loadRequests();
     loadMyTasks();
     scheduleReminder(task);
@@ -86,7 +79,14 @@ function acceptTask(id) {
   }
 }
 
-// 🔔 Reminder before scheduled task time
+function removeAcceptedTask(id) {
+  let accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
+  accepted = accepted.filter(t => t.id !== id);
+  localStorage.setItem("myTasks", JSON.stringify(accepted));
+  loadMyTasks();
+  loadRequests(); // show back in nearby (optional)
+}
+
 function scheduleReminder(task) {
   const now = new Date();
   const [hh, mm] = task.time.split(":");
@@ -103,7 +103,6 @@ function scheduleReminder(task) {
   }
 }
 
-// 👁️ Animate cards
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
@@ -112,12 +111,11 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.1 });
 
-// 🎉 Confetti & Sound
 function playConfetti() {
   if (window.confetti) {
     window.confetti({
-      particleCount: 150,
-      spread: 60,
+      particleCount: 100,
+      spread: 70,
       origin: { y: 0.6 }
     });
   }
@@ -128,7 +126,6 @@ function playDing() {
   if (audio) audio.play();
 }
 
-// ✅ Load accepted tasks
 function loadMyTasks() {
   myTasksDiv.innerHTML = "";
   const accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
@@ -139,13 +136,13 @@ function loadMyTasks() {
     div.innerHTML = `
       <strong>${t.task}</strong><br>
       Scheduled at: ${t.time}<br>
-      <small>📍 ${t.lat}, ${t.lon}</small>
+      <small>📍 ${t.lat}, ${t.lon}</small><br>
+      <button onclick="removeAcceptedTask(${t.id})">🗑️ Remove</button>
     `;
     myTasksDiv.appendChild(div);
     observer.observe(div);
   });
 }
 
-// 🔁 Initialize
 loadRequests();
 loadMyTasks();
