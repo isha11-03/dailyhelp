@@ -3,6 +3,7 @@ const form = document.getElementById("helpForm");
 const requestsDiv = document.getElementById("requests");
 const myTasksDiv = document.getElementById("myTasks");
 
+// 📍 Get Location
 function getLocation() {
   navigator.geolocation.getCurrentPosition(
     pos => {
@@ -10,28 +11,27 @@ function getLocation() {
       lon = pos.coords.longitude;
       document.getElementById("locationStatus").innerText = `📍 ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
     },
-    err => {
-      alert("Location access denied.");
-    }
+    err => alert("Location access denied.")
   );
 }
 
+// 📤 Post Task
 form.addEventListener("submit", e => {
   e.preventDefault();
   const task = document.getElementById("task").value;
   const time = document.getElementById("time").value;
-  const reward = document.getElementById("reward").value;
+  const reward = document.getElementById("reward").value || "No Reward";
 
   const request = {
     id: Date.now(),
     task,
     time,
-    reward: reward || "No Reward",
+    reward,
     lat: lat ?? "Not shared",
     lon: lon ?? "Not shared"
   };
 
-  let all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
+  const all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
   all.push(request);
   localStorage.setItem("helpRequests", JSON.stringify(all));
   form.reset();
@@ -40,6 +40,7 @@ form.addEventListener("submit", e => {
   playDing();
 });
 
+// 📚 Load Requests
 function loadRequests() {
   requestsDiv.innerHTML = "";
   const all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
@@ -62,6 +63,7 @@ function loadRequests() {
   });
 }
 
+// ✅ Accept Task
 function acceptTask(id) {
   let accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
   let all = JSON.parse(localStorage.getItem("helpRequests") || "[]");
@@ -69,8 +71,11 @@ function acceptTask(id) {
   if (task) {
     accepted.push(task);
     localStorage.setItem("myTasks", JSON.stringify(accepted));
-    const updatedAll = all.filter(r => r.id !== id);
-    localStorage.setItem("helpRequests", JSON.stringify(updatedAll));
+
+    // Remove from available
+    const updated = all.filter(r => r.id !== id);
+    localStorage.setItem("helpRequests", JSON.stringify(updated));
+
     loadRequests();
     loadMyTasks();
     scheduleReminder(task);
@@ -79,14 +84,15 @@ function acceptTask(id) {
   }
 }
 
+// ❌ Remove Task
 function removeAcceptedTask(id) {
   let accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
   accepted = accepted.filter(t => t.id !== id);
   localStorage.setItem("myTasks", JSON.stringify(accepted));
   loadMyTasks();
-  loadRequests(); // show back in nearby (optional)
 }
 
+// 🔔 Reminder
 function scheduleReminder(task) {
   const now = new Date();
   const [hh, mm] = task.time.split(":");
@@ -96,25 +102,18 @@ function scheduleReminder(task) {
   const delay = taskTime.getTime() - now.getTime();
   if (delay > 0 && delay < 4 * 60 * 60 * 1000) {
     setTimeout(() => {
-      alert(`⏰ Reminder: Your task "${task.task}" is scheduled now.`);
-      playDing();
+      alert(`⏰ Reminder: "${task.task}" is scheduled now.`);
       playConfetti();
+      playDing();
     }, delay);
   }
 }
 
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add("visible");
-    }
-  });
-}, { threshold: 0.1 });
-
+// ✨ Confetti & Ding
 function playConfetti() {
   if (window.confetti) {
     window.confetti({
-      particleCount: 100,
+      particleCount: 150,
       spread: 70,
       origin: { y: 0.6 }
     });
@@ -126,6 +125,16 @@ function playDing() {
   if (audio) audio.play();
 }
 
+// 👁️ Animate on scroll
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add("visible");
+    }
+  });
+}, { threshold: 0.1 });
+
+// 🔁 Load Accepted Tasks
 function loadMyTasks() {
   myTasksDiv.innerHTML = "";
   const accepted = JSON.parse(localStorage.getItem("myTasks") || "[]");
@@ -144,5 +153,6 @@ function loadMyTasks() {
   });
 }
 
+// 🚀 Start
 loadRequests();
 loadMyTasks();
